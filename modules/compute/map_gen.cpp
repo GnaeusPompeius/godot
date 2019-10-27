@@ -1,4 +1,3 @@
-#include "map_gen.h"
 /* map_gen.cpp */
 
 #include "map_gen.h"
@@ -21,21 +20,31 @@ MapGenerator::MapGenerator() {
 }
 
 Ref<Image> MapGenerator::get_image() {
-	PoolVector<uint8_t> image_data;
-	image_data.resize(size_x * size_y * 4);
-	for (int i = 0; i < image_data.size(); i+=4) {
-		image_data.write()[i] = (uint8_t)(data.get((i + 1) / 4).height >> 4);
-		image_data.write()[i + 1] = (uint8_t)(data.get((i + 1) / 4).height >> 4);
-		image_data.write()[i + 2] = (uint8_t)(data.get((i + 1) / 4).height >> 4);
-		image_data.write()[i + 3] = 255;
+
+	StreamPeerBuffer image_data;
+	image_data.resize(size_x * size_y * 4 * sizeof(float));
+	for (int i = 0; i < data.size(); i++) {
+		//Floats normalized to [0, 1]
+		//OS::get_singleton()->print("Normals: %f, %f\n", data.get(i).normals[0], data.get(i).normals[1]);
+		image_data.put_float(data.get(i).normals[0]);	//R
+		image_data.put_float(0); //G
+		image_data.put_float(data.get(i).normals[1]); //B
+		image_data.put_float(1);									//A
 	}
+	image_data.seek(0);
+
 	Ref<Image> image = memnew(Image);
-	image->create(size_x, size_y, false, Image::FORMAT_RGBA8, image_data);
+
+	image->create(size_x, size_y, false, Image::FORMAT_RGBAF, image_data.get_data_array());
 	return image;
 }
 
-TerrainCell* MapGenerator::get_cell(uint32_t x, uint32_t y) {
-	return &data.get(x + size_x * y);
+TerrainCell MapGenerator::get_cell(uint32_t x, uint32_t y) {
+	return data.get(x + size_x * y);
+}
+
+void MapGenerator::set_cell(uint32_t x, uint32_t y, TerrainCell cell) {
+	return data.set(x + size_x * y, cell);
 }
 
 void MapGenerator::load_data() {
@@ -47,33 +56,31 @@ void MapGenerator::load_data() {
 
 	for (int i = 0; i < size_x * size_y; i++) {
 		TerrainCell cell;
-		cell.height = source[i];
+		cell.height = (float)(source[i]);
+		cell.water = 0;
 		data.set(i, cell);
 	}
 	file->close();
 	free(source);
 }
 
-
 //For Irrigation
 void MapGenerator::generate_normals() {
 	float normals[2];
-	TerrainCell *cell;
-	TerrainCell *target;
+	TerrainCell cell;
+	TerrainCell target;
 
 	for (int i = 0; i < size_x; i++) {
 		for (int j = 0; j < size_y; j++) {
 			float diff = 0;
 			float test = 0;
-
 			cell = get_cell(i, j);
 
 			//Don't consider areas off the map.
 			for (int x = i - 1 * (i != 0); x <= i + 1 * (i != size_x - 1); x++) {
 				for (int y = j - 1 * (j != 0); y <= j + 1 * (j != size_y - 1); y++) {
 					target = get_cell(x, y);
-					test = (target->height + target->water) - (cell->height + cell->water);
-					OS::get_singleton()->print("Make sure a float: %d", test);
+					test = (target.height + target.water) - (cell.height + cell.water);
 
 					if (test < diff && test) {
 						diff = test;
@@ -82,9 +89,10 @@ void MapGenerator::generate_normals() {
 					}
 				}
 			}
+		cell.normals[0] = normals[0];
+		cell.normals[1] = normals[1];
 
-		cell->normals[0] = normals[0];
-		cell->normals[1] = normals[1];
+		set_cell(i, j, cell);
 		}
 	}
 }
