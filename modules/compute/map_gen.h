@@ -32,6 +32,7 @@ class MapGenerator : public Reference {
 	void load_data();
 	void generate_normals();
 
+	TerrainCell *get_cell(uint32_t x, uint32_t y);
 protected:
 	static void _bind_methods();
 
@@ -39,7 +40,6 @@ public:
 	MapGenerator();
 	
 	Ref<Image> get_image();
-	TerrainCell get_cell(uint32_t x, uint32_t y);
 };
 
 #endif // MAP_GEN_H

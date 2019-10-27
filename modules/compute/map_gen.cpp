@@ -34,8 +34,8 @@ Ref<Image> MapGenerator::get_image() {
 	return image;
 }
 
-TerrainCell MapGenerator::get_cell(uint32_t x, uint32_t y) {
-	return data.get(x + size_x * y);
+TerrainCell* MapGenerator::get_cell(uint32_t x, uint32_t y) {
+	return &data.get(x + size_x * y);
 }
 
 void MapGenerator::load_data() {
@@ -54,5 +54,37 @@ void MapGenerator::load_data() {
 	free(source);
 }
 
+
+//For Irrigation
 void MapGenerator::generate_normals() {
+	float normals[2];
+	TerrainCell *cell;
+	TerrainCell *target;
+
+	for (int i = 0; i < size_x; i++) {
+		for (int j = 0; j < size_y; j++) {
+			float diff = 0;
+			float test = 0;
+
+			cell = get_cell(i, j);
+
+			//Don't consider areas off the map.
+			for (int x = i - 1 * (i != 0); x <= i + 1 * (i != size_x - 1); x++) {
+				for (int y = j - 1 * (j != 0); y <= j + 1 * (j != size_y - 1); y++) {
+					target = get_cell(x, y);
+					test = (target->height + target->water) - (cell->height + cell->water);
+					OS::get_singleton()->print("Make sure a float: %d", test);
+
+					if (test < diff && test) {
+						diff = test;
+						normals[0] = x - i;
+						normals[1] = y - j;
+					}
+				}
+			}
+
+		cell->normals[0] = normals[0];
+		cell->normals[1] = normals[1];
+		}
+	}
 }
