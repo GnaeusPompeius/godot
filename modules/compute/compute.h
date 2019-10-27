@@ -17,8 +17,8 @@ template <typename T> class Compute {
 	//Workgroup Size
 	uint32_t wg_x = 1, wg_y = 1, wg_z = 1;
 	uint32_t size_data = 1;
-	Vector<T> *input;
-	Vector<T> *output;
+	PoolVector<T> *input;
+	PoolVector<T> *output;
 
 	//GL Data
 	Vector<GLuint> programs;
@@ -31,29 +31,36 @@ public:
 	Compute() {
 		programs = Vector<GLuint>();
 	}
+	~Compute() {
+		memdelete(output);
+	}
 
 	void set_workgroups(uint32_t x, uint32_t y, uint32_t z) {
 		wg_x = x;
 		wg_y = y;
 		wg_z = z;
 	}
-	void set_input_data(Vector<T> *data_in, uint32_t count, GLuint index_in = 1, GLuint index_out = 2) {
+
+	void set_input_data(PoolVector<T> *data_in, uint32_t count, GLuint index_in = 1, GLuint index_out = 2) {
 		input = data_in;
+		output = memnew(PoolVector<T>);
+		output->resize(input->size());
+		//output->append_array(input);
 		in_index = index_in;
 		out_index = index_out;
 		size_data = count * sizeof(T);
 	}
 
-	Vector<T> *get_output_data() {
+	PoolVector<T> *get_output_data() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
 		GLint bufMask = GL_MAP_READ_BIT;
-		T* data = (T *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, NUM_CELLS * sizeof(struct cell), bufMask);
+		T* data = (T *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
 		
-
-		//memcpy()
+		memcpy(output->write().ptr(), data, size_data);
 
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		return output;	
 	}
 
 	//void set_uniform(uint shader, )
@@ -102,21 +109,19 @@ public:
 		}
 	}
 
-	void generate_buffers(Vector<T> *data_in = input) {
-		input = data_in;
-		output = input;
-
+	//set_input_data first.
+	void generate_buffers() {
 		glGenBuffers(1, &in_buffer);
 		glGenBuffers(1, &out_buffer);
 
 		GLint bufMask = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, input->ptrw(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, input->read().ptr() , GL_DYNAMIC_DRAW);
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, output->ptrw(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, 0, GL_DYNAMIC_DRAW);
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
@@ -138,22 +143,24 @@ public:
 				glDispatchCompute(wg_x, wg_y, wg_z);
 				//Maybe delay this at end, avoid hang
 				//or just thread the whole step()
+				OS::get_singleton()->print("HERE\n");
 				glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-
+				OS::get_singleton()->print("NOW\n");
 				//Ping-Pong the buffers, and wipe the new output
-				GLuint temp = input;
-				input = output;
-				output = temp;
-				bufMask = GL_MAP_WRITE_BIT;
-
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, input);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, output);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, output);
+				GLuint temp = in_buffer;
+				in_buffer = out_buffer;
+				out_buffer = temp;
+				GLint bufMask = GL_MAP_WRITE_BIT;
+				/*
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, out_index, out_buffer);
+				glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
 				//Rebuffering zeros is also dumb. Set output to 0 in the shader.
-				glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, NULL, GL_DYNAMIC_DRAW);
+				glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, 0, GL_DYNAMIC_DRAW);
 
 				glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+				*/
 			}
 		}
 		glUseProgram(old_program);

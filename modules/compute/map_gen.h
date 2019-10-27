@@ -26,7 +26,7 @@ class MapGenerator : public Reference {
 	GDCLASS(MapGenerator, Reference);
 	uint32_t size_x = 3600, size_y = 3600;
 	
-	Vector<TerrainCell> data;
+	PoolVector<TerrainCell> data;
 	Compute<TerrainCell> terrain_shader;
 
 	void load_data();

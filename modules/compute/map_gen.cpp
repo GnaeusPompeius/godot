@@ -17,10 +17,16 @@ MapGenerator::MapGenerator() {
 	data.resize(size_x * size_y);
 	load_data();
 	generate_normals();
+
+	terrain_shader.set_workgroups(120, 60, 1);
+	terrain_shader.set_input_data(&data, size_x * size_y);
+	terrain_shader.generate_buffers();
+	terrain_shader.step();
 }
 
 Ref<Image> MapGenerator::get_image() {
 
+	data = *terrain_shader.get_output_data();
 	StreamPeerBuffer image_data;
 	image_data.resize(size_x * size_y * 4 * sizeof(float));
 	for (int i = 0; i < data.size(); i++) {
@@ -29,7 +35,7 @@ Ref<Image> MapGenerator::get_image() {
 		image_data.put_float(data.get(i).normals[0]);	//R
 		image_data.put_float(0); //G
 		image_data.put_float(data.get(i).normals[1]); //B
-		image_data.put_float(1);									//A
+		image_data.put_float(1);//A
 	}
 	image_data.seek(0);
 

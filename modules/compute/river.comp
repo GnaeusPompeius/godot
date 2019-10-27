@@ -3,146 +3,27 @@
 #extension GL_ARB_shader_storage_buffer_object : enable
 #extension GL_ARB_shader_image_load_store : enable
 
-struct Cell {
-    float mass;
-    float wind;
-    int destination;
-
-    float star_wind;
-    int star_destination;
-
-    float port_wind;
-    int port_destination;
-    int padding;
+struct TerrainCell {
+	float height;
+	float water;
+	float normals[2];	// x, y
 };
 
 precision mediump float;
 
-layout( location = 0 ) uniform uint size = 1;
-layout( location = 1) uniform uint delta = 0;
-
-layout(std430, binding = 5) coherent readonly buffer in_cells{
-  Cell mass_in[];
+layout(std430, binding = 1) coherent readonly buffer in_cells{
+  TerrainCell mass_in[];
 };
-layout(std430, binding = 6) coherent buffer out_cells{
-  Cell mass_out[];
+layout(std430, binding = 2) coherent buffer out_cells{
+  TerrainCell mass_out[];
 };
 
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-
-const float pi = 3.14159;
-const float prevailing_Wind = pi / 2;
-const float cell_size = 16;
-//Cell Size acts somewhat like resolution, seemingly increases quality of dunes, but takes more time to congeal
-
-int index_count(vec2 pos){
-  return int((pos.x)*size + pos.y);
-}
+layout(local_size_x = 30, local_size_y = 30, local_size_z = 1) in;
 
 
-float random(vec2 co){
-  co = co.xy / vec2(size,size).xy;
-  return abs(fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * (43758.5453)));
-}
-//float pos_mass = mass_in[index_count(ivec2(gl_GlobalInvocationID.xy))];// + .0001;
-
-void erosion(vec2 pos, const float pos_mass) {
-  float wind_strength = random(pos) * .10;
-  float transport_length = 3 + random(pos) * 3;
-  float amount_eroded = 0.0f;
-  
-  int count = 1;
-  int deposit_x = 0;
-  int deposit_y = 0;
-  ivec2 deposit;
-  
-  while(transport_length > 0){
-    deposit_x =  int(pos.x + round(count * cos(prevailing_Wind)));
-    deposit_y =  int(pos.y + round(count * sin(prevailing_Wind)));
-    deposit = ivec2((deposit_x + size) % size, (deposit_y + size) % size);
-
-    float cell_amount = pos_mass;
-    float leeward_amount = mass_in[index_count(deposit)].mass;
-    if(count == 1){
-      //Pick up sand
-      float leeward_angle = atan((leeward_amount - cell_amount) / cell_size);		//Maybe change this
-      amount_eroded = cell_amount * wind_strength * (1 + 0.9f * tanh(leeward_angle));
-      if(amount_eroded > pos_mass)
-        amount_eroded = pos_mass;
-    }
-
-    float delta_height = (leeward_amount - cell_amount) / cell_amount;
-    float transport_cost = 1 * (1 - tanh(delta_height));
-    transport_length -= transport_cost;
-    count++;
-  }
-
-  //Get the 
-
-  mass_out[index_count(pos)].mass = pos_mass - amount_eroded;
-  mass_out[index_count(pos)].wind = amount_eroded;
-  mass_out[index_count(pos)].destination = index_count(deposit);
-
-  mass_out[index_count(pos)].port_wind = amount_eroded;
-  mass_out[index_count(pos)].port_destination = index_count(deposit);
-
-  mass_out[index_count(pos)].star_wind = amount_eroded;
-  mass_out[index_count(pos)].star_destination = index_count(deposit);
-}
-
-void sliding(vec2 pos, float pos_mass){
-  uint low_x = 0;
-  uint low_y = 0;
-  float low_mass = 0;
-  float low_angle = 0;
-  
-  for(int x = -1; x < 2; x++){
-    for(int y = -1; y < 2; y++){
-      if( x == 0 && y ==0)
-        continue;
-      uint deposit_x =  uint(pos.x + x);
-      uint deposit_y =  uint(pos.y + y);
-      deposit_x = (deposit_x + size) % size;
-      deposit_y = (deposit_y + size) % size;
-      float deposit_mass = mass_in[index_count(vec2(deposit_x, deposit_y))].mass;
-
-      float angle = atan((deposit_mass - pos_mass) / cell_size);
-      if(angle < low_angle){
-        low_angle = angle;
-        low_mass = deposit_mass;
-        low_x = deposit_x;
-        low_y = deposit_y;
-      }
-    }
-  }
-
-  float slid_amount = 0;
-
-  //Maximum angle of stability
-  if(low_angle <= ((pi / 180.) * -34.)){
-    slid_amount = ((pos_mass - low_mass) / 2.0)  - cell_size*tan((pi / 180) * 30);	//Angle of Repose
-  }
-
-  mass_out[index_count(pos)].mass = pos_mass - slid_amount;
-  mass_out[index_count(pos)].wind = slid_amount;
-  mass_out[index_count(pos)].destination = index_count(vec2(low_x, low_y));
-}
 
 void main() {
-  // get index in global work group i.e x,y position
-  vec2 position = vec2(gl_GlobalInvocationID.xy);
-  float pos_mass = mass_in[index_count(position)].mass;
-  uint max_position = gl_WorkGroupSize.x * gl_NumWorkGroups.x;
 
-  //mass_out[index_count(position)].mass = (position.x * position.y) / (max_position * max_position);
-  //mass_out[index_count(position)].mass = pos_mass;
-  //mass_out[index_count(position)].mass = random(vec2(position.x+1, position.y+1));
-
-  if(position.x < size && position.x < size){
-    if(delta % 2 == 0)
-      erosion(position, pos_mass);
-    else
-      sliding(position, pos_mass);
-  }
+	mass_out[gl_LocalInvocationIndex] = mass_in[gl_LocalInvocationIndex ];
 
 }
