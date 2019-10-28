@@ -5,6 +5,7 @@
 void MapGenerator::_bind_methods() {
 	//ClassDB::bind_method(D_METHOD("add", "value"), &Summator::add);
 	ClassDB::bind_method(D_METHOD("get_image"), &MapGenerator::get_image);
+	ClassDB::bind_method(D_METHOD("step"), &MapGenerator::step);
 }
 
 MapGenerator::MapGenerator() {
@@ -18,9 +19,12 @@ MapGenerator::MapGenerator() {
 	load_data();
 	generate_normals();
 
-	terrain_shader.set_workgroups(120, 60, 1);
+	terrain_shader.set_workgroups(120, 120, 1);
 	terrain_shader.set_input_data(&data, size_x * size_y);
 	terrain_shader.generate_buffers();
+}
+
+void MapGenerator::step() {
 	terrain_shader.step();
 }
 
@@ -28,19 +32,20 @@ Ref<Image> MapGenerator::get_image() {
 
 	data = *terrain_shader.get_output_data();
 	StreamPeerBuffer image_data;
+	Ref<Image> image = memnew(Image);
 	image_data.resize(size_x * size_y * 4 * sizeof(float));
+
+	
 	for (int i = 0; i < data.size(); i++) {
 		//Floats normalized to [0, 1]
-		//OS::get_singleton()->print("Normals: %f, %f\n", data.get(i).normals[0], data.get(i).normals[1]);
-		image_data.put_float(data.get(i).normals[0]);	//R
-		image_data.put_float(0); //G
-		image_data.put_float(data.get(i).normals[1]); //B
+		//OS::get_singleton()->print("Normals: %f\n", data.get(i).height);
+		image_data.put_float(data.get(i).height);	//R
+		image_data.put_float(data.get(i).height); //G
+		image_data.put_float(data.get(i).height); //B
 		image_data.put_float(1);//A
 	}
 	image_data.seek(0);
-
-	Ref<Image> image = memnew(Image);
-
+	
 	image->create(size_x, size_y, false, Image::FORMAT_RGBAF, image_data.get_data_array());
 	return image;
 }

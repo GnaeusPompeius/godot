@@ -11,7 +11,15 @@
 struct TerrainCell {
 	float height;
 	float water;
-	float normals[2];	// x, y
+	int32_t normals[2];	// x, y
+	
+	uint32_t target_index;
+	float target_amount;
+	uint32_t port_index;
+	float port_amount;
+	uint32_t star_index;
+	float star_amount;
+	uint32_t padding[2];
 };
 
 /*
@@ -42,6 +50,7 @@ public:
 	MapGenerator();
 	
 	Ref<Image> get_image();
+	void step();
 };
 
 #endif // MAP_GEN_H

@@ -6,10 +6,20 @@
 struct TerrainCell {
 	float height;
 	float water;
-	float normals[2];	// x, y
+	int normals[2];	// x, y
+	
+	uint target_index;
+	float target_amount;
+	uint port_index;
+	float port_amount;
+	uint star_index;
+	float star_amount;
+	int padding[2];
 };
 
 precision mediump float;
+
+layout( location = 0 ) uniform uint delta;
 
 layout(std430, binding = 1) coherent readonly buffer in_cells{
   TerrainCell mass_in[];
@@ -20,10 +30,120 @@ layout(std430, binding = 2) coherent buffer out_cells{
 
 layout(local_size_x = 30, local_size_y = 30, local_size_z = 1) in;
 
+const int terrain_size = 3600;
+//RainDrop controls "resolution" of the watershed. Higher Values == Fatter Rivers
+const float rain_drop = .01;
+//MC controls speed, "viscosity" of flow
+const float manning_coeff = 1.f;
 
+float get_velocity(const TerrainCell source, const TerrainCell target){
+	float slope = (source.height + source.water) - (target.height + target.water);
+	float depth = source.water;
+	float velocity = 0;
+	
+	if (slope > 0 && depth > 0) {
+		velocity = (1 / manning_coeff) * pow((depth / 10.), (2.0f / 3.0f)) * pow((slope / 10), (1.0f / 3.0f));
+	}
+
+	if (velocity < 0 || isnan(velocity))
+		velocity = 0;
+	return velocity;
+}
+
+uint get_index(uint x, uint y){
+	return x + y*terrain_size;
+}
+
+highp float random(vec2 co)
+{
+    highp float a = 12.9898 + float(delta)*.1;
+    highp float b = 78.233;
+    highp float c = 43758.5453;
+    highp float dt= dot(co.xy ,vec2(a,b));
+    highp float sn= mod(dt,3.14);
+    return fract(sin(sn) * c);
+}
 
 void main() {
+	uint index = get_index(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
 
-	mass_out[gl_LocalInvocationIndex] = mass_in[gl_LocalInvocationIndex ];
+	TerrainCell cell = mass_in[index];
+	uint cellX = gl_GlobalInvocationID.x;
+	uint cellY = gl_GlobalInvocationID.y;
+	int dX = cell.normals[0];
+	int dY = cell.normals[1];
+	/*
+	//Clear previous output
+	cell.target_index = 0;
+	cell.target_amount = 0;
+	cell.star_index = 0;
+	cell.star_amount = 0;
+	cell.port_index = 0;
+	cell.port_amount = 0;
 
+	//Check for inputs
+	TerrainCell temp;
+	for(int x = -1; x <=1; x++){
+		for(int y = -1; y <= 1; y++){
+			if( x == 0 && y == 0)
+				continue;
+
+			temp = mass_in[get_index(cellX + x, cellY + y)];
+			if(temp.target_index == gl_LocalInvocationIndex){
+				cell.water += temp.target_amount;
+			}
+			if(temp.star_index == gl_LocalInvocationIndex){
+				cell.water += temp.star_amount;
+			}
+			if(temp.port_index == gl_LocalInvocationIndex){
+				cell.water += temp.port_amount;
+			}
+		}
+	}
+
+	//Add rain
+
+	cell.water += rain_drop;
+
+	//Move Water
+	if(dX == 0 && dY == 0)
+		return;
+	if ((dX < 0 && cellX == 0) || (dY < 0 && cellY == 0) || (dX > 0 && cellX == terrain_size) || (dY > 0 && cellY == terrain_size)) {
+		//eventually drain water
+		return;
+	}
+
+	cell.target_index = get_index(cellX + dX, cellY + dY);
+	cell.star_index = get_index(cellX + sign(dY + dX), cellY + sign(dY - dX));
+	cell.port_index = get_index(cellX + sign(dX - dY), cellY + sign(dY + dX));
+
+	TerrainCell target = mass_in[cell.target_index];
+	TerrainCell starboard = mass_in[cell.star_index];
+	TerrainCell port = mass_in[cell.port_index];
+
+	float velocity = get_velocity(cell, target);
+
+	float target_slope = (cell.height + cell.water) - (target.height + target.water);
+	float port_slope = (cell.height + cell.water) - (port.height + port.water);
+	float starboard_slope = (cell.height + cell.water) - (starboard.height + starboard.water);
+	target_slope *= float(target_slope >= 0);
+	port_slope *= float(port_slope >= 0);
+	starboard_slope *= float(starboard_slope >= 0);
+	float sum_slope = target_slope + port_slope + starboard_slope;
+
+	if (sum_slope > 0) {
+		float water_moved = velocity * cell.water;
+
+		
+		cell.target_amount += (target_slope / sum_slope) * water_moved;
+		cell.port_amount += (port_slope / sum_slope) * water_moved;
+		cell.star_amount += (starboard_slope / sum_slope) * water_moved;
+
+		cell.water -= water_moved;
+	}
+	*/
+	cell.height = random(vec2(cellX, cellY));
+	
+	mass_out[index] = cell;
+	mass_out[index].height = random(vec2(cellX, cellY));
 }

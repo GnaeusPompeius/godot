@@ -17,6 +17,7 @@ template <typename T> class Compute {
 	//Workgroup Size
 	uint32_t wg_x = 1, wg_y = 1, wg_z = 1;
 	uint32_t size_data = 1;
+	GLuint delta = 0;
 	PoolVector<T> *input;
 	PoolVector<T> *output;
 
@@ -26,6 +27,7 @@ template <typename T> class Compute {
 	//SSBO indices
 		//Godot doesn't natively use SSBOs, so safety/overlap only a concern for you.
 	GLuint in_index = 1, out_index = 2;
+
 
 public:
 	Compute() {
@@ -52,7 +54,7 @@ public:
 	}
 
 	PoolVector<T> *get_output_data() {
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
 		GLint bufMask = GL_MAP_READ_BIT;
 		T* data = (T *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
 		
@@ -129,41 +131,32 @@ public:
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 
-	void step(uint32_t delta = 1) {
-
+	void step() {
 		GLint old_program;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &old_program);
-		for (int j = 0; j < delta; j++) {
 
+		//Possibility for multiple programs
+		for (int j = 0; j < 1; j++) {
 			for (int i = 0; i < programs.size(); i++) {
-
 				glUseProgram(programs.get(i));
 
+				glUniform1ui(0, delta);
 				//Run the thing
 				glDispatchCompute(wg_x, wg_y, wg_z);
 				//Maybe delay this at end, avoid hang
 				//or just thread the whole step()
-				OS::get_singleton()->print("HERE\n");
 				glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-				OS::get_singleton()->print("NOW\n");
-				//Ping-Pong the buffers, and wipe the new output
+			
+				//Ping-Pong the buffers
 				GLuint temp = in_buffer;
 				in_buffer = out_buffer;
 				out_buffer = temp;
-				GLint bufMask = GL_MAP_WRITE_BIT;
-				/*
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
 				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, out_index, out_buffer);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
-				//Rebuffering zeros is also dumb. Set output to 0 in the shader.
-				glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, 0, GL_DYNAMIC_DRAW);
-
-				glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-				glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-				*/
 			}
 		}
 		glUseProgram(old_program);
+		delta++;
 	}
 };
 
