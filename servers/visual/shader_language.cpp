@@ -4143,6 +4143,11 @@ Error ShaderLanguage::_parse_block(BlockNode *p_block, const Map<StringName, Bui
 			if (!n)
 				return ERR_PARSE_ERROR;
 
+			if (n->get_datatype() != TYPE_BOOL) {
+				_set_error("Expected boolean expression");
+				return ERR_PARSE_ERROR;
+			}
+
 			tk = _get_token();
 			if (tk.type != TK_PARENTHESIS_CLOSE) {
 				_set_error("Expected ')' after expression");
@@ -4749,6 +4754,11 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 					return ERR_PARSE_ERROR;
 				}
 
+				if (has_builtin(p_functions, name)) {
+					_set_error("Redefinition of '" + String(name) + "'");
+					return ERR_PARSE_ERROR;
+				}
+
 				if (uniform) {
 
 					ShaderNode::Uniform uniform2;
@@ -4997,6 +5007,11 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 					return ERR_PARSE_ERROR;
 				}
 
+				if (has_builtin(p_functions, name)) {
+					_set_error("Redefinition of '" + String(name) + "'");
+					return ERR_PARSE_ERROR;
+				}
+
 				tk = _get_token();
 				if (tk.type != TK_PARENTHESIS_OPEN) {
 					if (type == TYPE_VOID) {
@@ -5051,6 +5066,11 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 
 							name = tk.text;
 							if (_find_identifier(NULL, Map<StringName, BuiltInInfo>(), name)) {
+								_set_error("Redefinition of '" + String(name) + "'");
+								return ERR_PARSE_ERROR;
+							}
+
+							if (has_builtin(p_functions, name)) {
 								_set_error("Redefinition of '" + String(name) + "'");
 								return ERR_PARSE_ERROR;
 							}
@@ -5156,6 +5176,12 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 							return ERR_PARSE_ERROR;
 						}
 					}
+
+					if (has_builtin(p_functions, pname)) {
+						_set_error("Redefinition of '" + String(pname) + "'");
+						return ERR_PARSE_ERROR;
+					}
+
 					FunctionNode::Argument arg;
 					arg.type = ptype;
 					arg.name = pname;
@@ -5220,6 +5246,26 @@ Error ShaderLanguage::_parse_shader(const Map<StringName, FunctionInfo> &p_funct
 	}
 
 	return OK;
+}
+
+bool ShaderLanguage::has_builtin(const Map<StringName, ShaderLanguage::FunctionInfo> &p_functions, const StringName &p_name) {
+
+	if (p_functions.has("vertex")) {
+		if (p_functions["vertex"].built_ins.has(p_name)) {
+			return true;
+		}
+	}
+	if (p_functions.has("fragment")) {
+		if (p_functions["fragment"].built_ins.has(p_name)) {
+			return true;
+		}
+	}
+	if (p_functions.has("light")) {
+		if (p_functions["light"].built_ins.has(p_name)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 Error ShaderLanguage::_find_last_flow_op_in_op(ControlFlowNode *p_flow, FlowOperation p_op) {
