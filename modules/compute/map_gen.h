@@ -24,9 +24,13 @@ struct TerrainCell {
 
 /*
 	TODO:
-		Test input,  output
-			Baseline
-			Through one cycle of naive effect.
+		Update normals
+
+		spill over the edges
+
+		smooth out | steepen slopes
+			It's pooling too much
+		introduce evaporation
 			
 */
 
@@ -36,7 +40,7 @@ class MapGenerator : public Reference {
 	
 	PoolVector<TerrainCell> data;
 	Compute<TerrainCell> terrain_shader;
-
+	
 	void load_data();
 	void generate_normals();
 

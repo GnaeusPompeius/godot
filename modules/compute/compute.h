@@ -21,6 +21,8 @@ template <typename T> class Compute {
 	PoolVector<T> *input;
 	PoolVector<T> *output;
 
+	
+
 	//GL Data
 	Vector<GLuint> programs;
 	GLuint in_buffer, out_buffer;
@@ -53,16 +55,17 @@ public:
 		size_data = count * sizeof(T);
 	}
 
-	PoolVector<T> *get_output_data() {
+	T *open_output_data() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
 		GLint bufMask = GL_MAP_READ_BIT;
 		T* data = (T *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
 		
-		memcpy(output->write().ptr(), data, size_data);
+		return data;	
+	}
 
+	void close_output_data() {
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-		return output;	
 	}
 
 	//void set_uniform(uint shader, )
