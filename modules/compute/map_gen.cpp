@@ -9,18 +9,18 @@ void MapGenerator::_bind_methods() {
 }
 
 MapGenerator::MapGenerator() {
-	String path = String("C:\\Godot\\modules\\compute\\river.comp");
-	Vector<String> paths;
-	paths.push_back(path);
+	String path = String("C:\\Godot\\modules\\compute\\river.particle.comp");
+	
+	terrain_shader.generate_program(path);
+		
+	world.resize(world_size_x * world_size_y);
+	data.resize(particle_count);
 
-	terrain_shader.generate_programs(&paths);
-
-	data.resize(size_x * size_y);
 	load_data();
-	generate_normals();
+	//generate_normals();
 
 	terrain_shader.set_workgroups(120, 120, 1);
-	terrain_shader.set_input_data(&data, size_x * size_y);
+	terrain_shader.set_input_data(data, world);
 	terrain_shader.generate_buffers();
 }
 
@@ -31,10 +31,10 @@ void MapGenerator::step() {
 
 Ref<Image> MapGenerator::get_image() {
 
-	TerrainCell* out = terrain_shader.open_output_data();
+	TerrainCell* out = terrain_shader.open_world_data();
 	StreamPeerBuffer image_data;
 	Ref<Image> image = memnew(Image);
-	image_data.resize(size_x * size_y * 3 * sizeof(float));
+	image_data.resize(world_size_x * world_size_y * 3 * sizeof(float));
 
 	float value = 0;
 
@@ -42,24 +42,25 @@ Ref<Image> MapGenerator::get_image() {
 		//Floats normalized to [0, 1]
 		//OS::get_singleton()->print("Normals: %f\n", out[i].height);
 
-		value = out[i].water;
+		value = out[i].height / 1400;
 		image_data.put_float(value); //R
 		image_data.put_float(value); //G
 		image_data.put_float(value); //B
 		//image_data.put_float(1);//A
 	}
 	
-	image->create(size_x, size_y, false, Image::FORMAT_RGBF, image_data.get_data_array());
-	terrain_shader.close_output_data();
+	image->create(world_size_x, world_size_y, false, Image::FORMAT_RGBF, image_data.get_data_array());
+	terrain_shader.close_data();
 	return image;
 }
 
-TerrainCell MapGenerator::get_cell(uint32_t x, uint32_t y) {
-	return data.get(x + size_x * y);
+TerrainCell MapGenerator::get_world_cell(uint32_t x, uint32_t y) {
+	return world.get(x + world_size_x * y);
 }
 
-void MapGenerator::set_cell(uint32_t x, uint32_t y, TerrainCell cell) {
-	return data.set(x + size_x * y, cell);
+
+void MapGenerator::set_world_cell(uint32_t x, uint32_t y, TerrainCell cell) {
+	return world.set(x + world_size_x * y, cell);
 }
 
 void MapGenerator::load_data() {
@@ -69,17 +70,17 @@ void MapGenerator::load_data() {
 	uint16_t *source = (uint16_t *)calloc(file->get_len(), sizeof(uint8_t));
 	file->get_buffer((uint8_t *)source, file->get_len());
 
-	for (int i = 0; i < size_x * size_y; i++) {
+	for (int i = 0; i < world_size_x * world_size_y; i++) {
 		TerrainCell cell;
 		cell.height = (float)(source[i]);
-		cell.water = 0;
-		data.write().ptr()[i] = cell;
+		world.write().ptr()[i] = cell;
 	}
 	file->close();
 	free(source);
 }
 
 //For Irrigation
+/*
 void MapGenerator::generate_normals() {
 	float normals[2];
 	TerrainCell cell;
@@ -107,7 +108,8 @@ void MapGenerator::generate_normals() {
 		cell.normals[0] = normals[0];
 		cell.normals[1] = normals[1];
 
-		set_cell(i, j, cell);
+		set_world_cell(i, j, cell);
 		}
 	}
 }
+*/

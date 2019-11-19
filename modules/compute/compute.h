@@ -13,30 +13,31 @@
 
 #include "core/print_string.h"
 
-template <typename T> class Compute {
+/*
+	In the abstract, World are the exogenous variables, Particle the endogenous
+*/
+template <typename World, typename Particle> class Compute {
 	//Workgroup Size
 	uint32_t wg_x = 1, wg_y = 1, wg_z = 1;
-	uint32_t size_data = 1;
+	uint32_t size_data = 1, size_world = 1;
 	GLuint delta = 0;
-	PoolVector<T> *input;
-	PoolVector<T> *output;
 
-	
+	PoolVector<World> world;
+	PoolVector<Particle> input;
 
 	//GL Data
-	Vector<GLuint> programs;
-	GLuint in_buffer, out_buffer;
+	GLuint program = 0;
+	GLuint in_buffer, out_buffer, world_buffer;
 	//SSBO indices
 		//Godot doesn't natively use SSBOs, so safety/overlap only a concern for you.
-	GLuint in_index = 1, out_index = 2;
+	GLuint in_index = 1, out_index = 2, world_index = 3;
 
 
 public:
 	Compute() {
-		programs = Vector<GLuint>();
+
 	}
 	~Compute() {
-		memdelete(output);
 	}
 
 	void set_workgroups(uint32_t x, uint32_t y, uint32_t z) {
@@ -45,92 +46,105 @@ public:
 		wg_z = z;
 	}
 
-	void set_input_data(PoolVector<T> *data_in, uint32_t count, GLuint index_in = 1, GLuint index_out = 2) {
+	void set_input_data(PoolVector<Particle> data_in, PoolVector<World> world_in, GLuint index_in = 1, GLuint index_out = 2, GLuint index_world = 3) {
 		input = data_in;
-		output = memnew(PoolVector<T>);
-		output->resize(input->size());
-		//output->append_array(input);
+		world = world_in;
+
 		in_index = index_in;
 		out_index = index_out;
-		size_data = count * sizeof(T);
+		world_index = index_world;
+
+		size_data = input.size() * sizeof(Particle);
+		size_world = world.size() * sizeof(World);
 	}
 
-	T *open_output_data() {
+	Particle *open_particle_data() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
 		GLint bufMask = GL_MAP_READ_BIT;
-		T* data = (T *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
+		Particle *data = (Particle *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
 		
 		return data;	
 	}
 
-	void close_output_data() {
+	World *open_world_data() {
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, world_buffer);
+		GLint bufMask = GL_MAP_READ_BIT;
+		World *data = (World *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_world, bufMask);
+
+		return data;
+	}
+
+	void close_data() {
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 
 	//void set_uniform(uint shader, )
 
-	void generate_programs(Vector<String> *shader_code_path) {
-		for (int i = 0; i < shader_code_path->size(); i++) {
-			print_line(shader_code_path->get(i));
-			GLint result = GL_FALSE;
-			GLint infoLogLength;
+	void generate_program(const String path) {
+		print_line(path);
+		GLint result = GL_FALSE;
+		GLint infoLogLength;
 
-			GLuint compute_program = glCreateProgram();
-			GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
-			programs.push_back(compute_program);
+		program = glCreateProgram();
+		GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
 
-			String path = shader_code_path->get(i);
-			FileAccess *file = FileAccess::open(path, FileAccess::READ);
-			uint8_t *source = (uint8_t *)calloc(file->get_len(), sizeof(uint8_t));
-			file->get_buffer(source, file->get_len());
+		FileAccess *file = FileAccess::open(path, FileAccess::READ);
+		uint8_t *source = (uint8_t *)calloc(file->get_len(), sizeof(uint8_t));
+		file->get_buffer(source, file->get_len());
 
-			glShaderSource(shader, 1, (const GLchar **)&source, NULL);
-			glCompileShader(shader);
+		glShaderSource(shader, 1, (const GLchar **)&source, NULL);
+		glCompileShader(shader);
 
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
-			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
-			char *computeShaderErrorMessage = (char *)calloc(infoLogLength, sizeof(char));
-			glGetShaderInfoLog(shader, infoLogLength, NULL, &(computeShaderErrorMessage[0]));
-			OS::get_singleton()->print("computeShaderErrorMessage: %s\n", computeShaderErrorMessage);
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+		char *computeShaderErrorMessage = (char *)calloc(infoLogLength, sizeof(char));
+		glGetShaderInfoLog(shader, infoLogLength, NULL, &(computeShaderErrorMessage[0]));
+		OS::get_singleton()->print("computeShaderErrorMessage: %s\n", computeShaderErrorMessage);
 
-			glAttachShader(compute_program, shader);
+		glAttachShader(program, shader);
 
-			result = GL_FALSE;
-			infoLogLength = GL_FALSE;
+		result = GL_FALSE;
+		infoLogLength = GL_FALSE;
 
-			glLinkProgram(compute_program);
+		glLinkProgram(program);
 
-			glGetProgramiv(compute_program, GL_LINK_STATUS, &result);
-			glGetProgramiv(compute_program, GL_INFO_LOG_LENGTH, &infoLogLength);
-			char *programErrorMessage = (char *)calloc(infoLogLength, sizeof(char));
-			glGetProgramInfoLog(compute_program, infoLogLength, NULL, &(programErrorMessage[0]));
-			OS::get_singleton()->print("programErrorMessage: %s\n", programErrorMessage);
+		glGetProgramiv(program, GL_LINK_STATUS, &result);
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
+		char *programErrorMessage = (char *)calloc(infoLogLength, sizeof(char));
+		glGetProgramInfoLog(program, infoLogLength, NULL, &(programErrorMessage[0]));
+		OS::get_singleton()->print("programErrorMessage: %s\n", programErrorMessage);
 
-			file->close();
-			free(computeShaderErrorMessage);
-			free(programErrorMessage);
-			free(source);
-		}
+		file->close();
+		free(computeShaderErrorMessage);
+		free(programErrorMessage);
+		free(source);
 	}
 
 	//set_input_data first.
 	void generate_buffers() {
 		glGenBuffers(1, &in_buffer);
 		glGenBuffers(1, &out_buffer);
+		glGenBuffers(1, &world_buffer);
 
 		GLint bufMask = GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT;
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, input->read().ptr() , GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, input.read().ptr() , GL_DYNAMIC_DRAW);
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, out_buffer);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, size_data, 0, GL_DYNAMIC_DRAW);
 		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, world_buffer);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, size_world, world.read().ptr(), GL_STATIC_READ);
+		glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, out_index, out_buffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, world_index, world_buffer);
+
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 
@@ -138,26 +152,22 @@ public:
 		GLint old_program;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &old_program);
 
-		//Possibility for multiple programs
-		for (int j = 0; j < 1; j++) {
-			for (int i = 0; i < programs.size(); i++) {
-				glUseProgram(programs.get(i));
+		glUseProgram(program);
 
-				glUniform1ui(0, delta);
-				//Run the thing
-				glDispatchCompute(wg_x, wg_y, wg_z);
-				//Maybe delay this at end, avoid hang
-				//or just thread the whole step()
-				glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+		glUniform1ui(0, delta);
+		//Run the thing
+		glDispatchCompute(wg_x, wg_y, wg_z);
+		//Maybe delay this at end, avoid hang
+		//or just thread the whole step()
+		glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 			
-				//Ping-Pong the buffers
-				GLuint temp = in_buffer;
-				in_buffer = out_buffer;
-				out_buffer = temp;
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, out_index, out_buffer);
-			}
-		}
+		//Ping-Pong the buffers
+		GLuint temp = in_buffer;
+		in_buffer = out_buffer;
+		out_buffer = temp;
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, in_index, in_buffer);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, out_index, out_buffer);
+
 		glUseProgram(old_program);
 		delta++;
 	}
