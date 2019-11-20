@@ -109,10 +109,10 @@ void MapGenerator::generate_normals() {
 
 			//SE Normal
 			//	Cross( SE->Oppo, SE->Target )
-			//SE_o = Vector3(1, 0, get_world_cell(i + 1, j).height - target.height);
-			OS::get_singleton()->print("Normal: %f, %f, %f\n", NW_t.cross(NW_o).x, NW_t.cross(NW_o).y, NW_t.cross(NW_o).z);
-			OS::get_singleton()->print("     NW_t: %f, %f, %f\n", NW_t.x, NW_t.y, NW_t.z);
-			OS::get_singleton()->print("     NW_o: %f, %f, %f\n", NW_o.x, NW_o.y, NW_o.z);
+			SE_t = Vector3(-1, 0, target.height - SE.height);
+			SE_o = Vector3(0, 1, opposite.height - SE.height);
+			target.normal_SE = SE_o.cross(SE_t);
+
 			set_world_cell(i, j, target);
 		}
 	}
