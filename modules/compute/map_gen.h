@@ -35,8 +35,10 @@ struct WaterParticle {
 
 class MapGenerator : public Reference {
 	GDCLASS(MapGenerator, Reference);
-	uint32_t world_size_x = 3600, world_size_y = 3600;
-	uint32_t particle_count = 12960000;
+	const uint32_t world_size_x = 3600, world_size_y = 3600;
+	const uint32_t particle_count = 12960000;
+	//in meters per pixel
+	const float terrain_resolution = 30;
 
 	PoolVector<WaterParticle> data;
 	PoolVector<TerrainCell> world;
@@ -52,7 +54,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	MapGenerator(){ Ve };
+	MapGenerator();
 	
 	Ref<Image> get_image();
 	void step();
