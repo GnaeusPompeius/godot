@@ -10,6 +10,8 @@
 
 struct TerrainCell {
 	float height;
+	Vector3 normal_NW;
+	Vector3 normal_SE;
 };
 
 struct WaterParticle {
@@ -41,7 +43,7 @@ class MapGenerator : public Reference {
 	Compute<TerrainCell, WaterParticle> terrain_shader;
 	
 	void load_data();
-	//void generate_normals();
+	void generate_normals();
 
 	TerrainCell get_world_cell(uint32_t x, uint32_t y);
 	void set_world_cell(uint32_t x, uint32_t y, TerrainCell cell);
@@ -50,7 +52,7 @@ protected:
 	static void _bind_methods();
 
 public:
-	MapGenerator();
+	MapGenerator(){ Ve };
 	
 	Ref<Image> get_image();
 	void step();

@@ -17,7 +17,7 @@ MapGenerator::MapGenerator() {
 	data.resize(particle_count);
 
 	load_data();
-	//generate_normals();
+	generate_normals();
 
 	terrain_shader.set_workgroups(120, 120, 1);
 	terrain_shader.set_input_data(data, world);
@@ -81,35 +81,40 @@ void MapGenerator::load_data() {
 
 //For Irrigation
 /*
+Godot's Plane Mesh:
+  NW _____ Oppo
+	 |  /|
+	 | / |
+	 |/__|
+Target	   SE
+
+*/
 void MapGenerator::generate_normals() {
-	float normals[2];
-	TerrainCell cell;
-	TerrainCell target;
+	Vector3 NW_t, NW_o, SE_t, SE_o;
+	TerrainCell target, opposite, NW, SE;
 
-	for (int i = 0; i < size_x; i++) {
-		for (int j = 0; j < size_y; j++) {
-			float diff = 0;
-			float test = 0;
-			cell = get_cell(i, j);
+	for (int i = 0; i < world_size_x - 1; i++) {
+		for (int j = 0; j < world_size_y - 1; j++) {
+			target = get_world_cell(i, j);
+			opposite = get_world_cell(i + 1, j + 1);
+			NW = get_world_cell(i, j + 1);
+			SE = get_world_cell(i + 1, j);
 
-			//Don't consider areas off the map.
-			for (int x = i - 1 * (i != 0); x <= i + 1 * (i != size_x - 1); x++) {
-				for (int y = j - 1 * (j != 0); y <= j + 1 * (j != size_y - 1); y++) {
-					target = get_cell(x, y);
-					test = (target.height + target.water) - (cell.height + cell.water);
 
-					if (test < diff && test) {
-						diff = test;
-						normals[0] = x - i;
-						normals[1] = y - j;
-					}
-				}
-			}
-		cell.normals[0] = normals[0];
-		cell.normals[1] = normals[1];
+			//NW Normal
+			//	Cross( NW->Target, NW->Oppo )
+			NW_t = Vector3(0, -1, target.height - NW.height);
+			NW_o = Vector3(1, 0, opposite.height - NW.height);
+			target.normal_NW = NW_t.cross(NW_o);
 
-		set_world_cell(i, j, cell);
+			//SE Normal
+			//	Cross( SE->Oppo, SE->Target )
+			//SE_o = Vector3(1, 0, get_world_cell(i + 1, j).height - target.height);
+			OS::get_singleton()->print("Normal: %f, %f, %f\n", NW_t.cross(NW_o).x, NW_t.cross(NW_o).y, NW_t.cross(NW_o).z);
+			OS::get_singleton()->print("     NW_t: %f, %f, %f\n", NW_t.x, NW_t.y, NW_t.z);
+			OS::get_singleton()->print("     NW_o: %f, %f, %f\n", NW_o.x, NW_o.y, NW_o.z);
+			set_world_cell(i, j, target);
 		}
 	}
 }
-*/
+
