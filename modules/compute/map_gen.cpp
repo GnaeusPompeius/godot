@@ -42,10 +42,10 @@ Ref<Image> MapGenerator::get_image() {
 		//Floats normalized to [0, 1]
 		//OS::get_singleton()->print("Normals: %f\n", out[i].height);
 
-		value = out[i].height / 1400;
-		image_data.put_float(value); //R
-		image_data.put_float(value); //G
-		image_data.put_float(value); //B
+		value = out[i].normal_NW.z / 5;
+		image_data.put_float(out[i].normal_NW.x); //R
+		image_data.put_float(out[i].normal_NW.y); //G
+		image_data.put_float(out[i].normal_NW.z); //B
 		//image_data.put_float(1);//A
 	}
 	
@@ -103,20 +103,18 @@ void MapGenerator::generate_normals() {
 
 			//NW Normal
 			//	Cross( NW->Target, NW->Oppo )
-			NW_t = Vector3(0, -1 * terrain_resolution, target.height - NW.height);
+			NW_t = Vector3(0, -1 * terrain_resolution, NW.height - target.height);
 			NW_o = Vector3(terrain_resolution, 0, opposite.height - NW.height);
-			target.normal_NW = NW_t.cross(NW_o);
+			target.normal_NW = NW_t.cross(NW_o).normalized();
 
 			//SE Normal
 			//	Cross( SE->Oppo, SE->Target )
 			SE_t = Vector3(-1 * terrain_resolution, 0, target.height - SE.height);
-			SE_o = Vector3(0, terrain_resolution, opposite.height - SE.height);
-			target.normal_SE = SE_o.cross(SE_t);
-			/*
-			OS::get_singleton()->print("Normal NW:      %f, %f, %f\n", target.normal_NW.x, target.normal_NW.y, target.normal_NW.z);
-			OS::get_singleton()->print("     Target:        %f, %f, %f\n", NW_t.x, NW_t.y, NW_t.z);
-			OS::get_singleton()->print("     Opposit:       %f, %f, %f\n", NW_o.x, NW_o.y, NW_o.z);
-			*/
+			SE_o = Vector3(0, terrain_resolution, SE.height - opposite.height);
+			target.normal_SE = SE_o.cross(SE_t).normalized();
+			
+			//OS::get_singleton()->print("Normal NW:      %f, %f, %f\n", target.normal_NW.x, target.normal_NW.y, target.normal_NW.z);
+		
 			set_world_cell(i, j, target);
 		}
 	}

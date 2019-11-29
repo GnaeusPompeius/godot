@@ -5,21 +5,21 @@
 
 struct TerrainCell {
 	float height;
+	vec3 normal_NW;
+	vec3 normal_SE;
+	float padding;
 };
 
 struct WaterParticle {
-	vec2 position;	//  [0, terrain_size]
-	vec2 velocity;
+	vec3 position;	//  [0, terrain_size]
+	vec3 velocity;
 	float mass;
+	float padding[1];
 };
 
 precision mediump float;
 
 layout( location = 0 ) uniform uint delta;
-
-layout(std430, binding = 1) coherent readonly buffer terrain_data{
-  TerrainCell terrain[];
-};
 
 layout(std430, binding = 1) coherent readonly buffer in_cells{
   WaterParticle particles_in[];
@@ -29,6 +29,11 @@ layout(std430, binding = 2) coherent buffer out_cells{
   WaterParticle particles_out[];
 };
 
+layout(std430, binding = 3) coherent readonly buffer terrain_data{
+  TerrainCell terrain[];
+};
+
+
 layout(local_size_x = 30, local_size_y = 30, local_size_z = 1) in;
 
 const int terrain_size = 3600;
@@ -37,6 +42,9 @@ const int terrain_size = 3600;
 const float rain_drop = .01;
 //Determines something
 const float ground_friction = .07;
+const float gravity = -.098;
+const float spawn_height = 5;
+
 //MC controls speed, "viscosity" of flow
 const float manning_coeff = 1.f;
 
@@ -60,36 +68,49 @@ void main() {
 	WaterParticle particle = particles_in[index];
 	uint rand_x = gl_GlobalInvocationID.x;
 	uint rand_y = gl_GlobalInvocationID.y;
-
-
+	
 	if(particle.mass <= 0){
 		//Make it rain_drop
 		particle.mass = rain_drop * random(vec2(rand_x, rand_y));
 		//Randomly position
 		particle.position.x = terrain_size * random(vec2(rand_x + delta, rand_y + delta));
 		particle.position.y = terrain_size * random(vec2(rand_x - delta, rand_y - delta));
-		//Reset position
-		particle.velocity = vec2(0);
+		//Put it above the terrain
+		particle.position.z = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y))].height + spawn_height;
+
+		//Reset velocity
+		particle.velocity = vec3(0);
 	}
 	
-	vec2 pos = particle.position;
-	vec2 target = vec2(pos.x + 
+	const TerrainCell ter_cell = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y))];
 
-	int target_index = get_index(cellX + dX, cellY + dY);
-	int star_index = get_index(cellX + sign(dY + dX), cellY + sign(dY - dX));
-	int port_index = get_index(cellX + sign(dX - dY), cellY + sign(dY + dX));
-
-
-	TerrainCell target = terrain[target_index];
-	TerrainCell starboard = terrain[star_index];
-	TerrainCell port = terrain[port_index];
+	
+	//Apply gravity + Move
+		
 
 
-	//Move
-		//
+	//Find terrain normal
+	float normal_x = fract(particle.position.x);
+	float normal_y = fract(particle.position.y);
+	vec3 terrain_normal;
+	if(normal_y > normal_x)
+		terrain_normal = ter_cell.normal_NW;
+	else
+		terrain_normal = ter_cell.normal_SE;
 
-		//Check for collision
+	//Find height of terrain at particles position
+	float terrain_at_position = 0;
+	//terrain_at_position = 	
 
+
+	//Check for collision
+	if(particle.position.z <= terrain_at_position){
+		
+
+		float angle_of_incidence = acos(dot(normalize(particle.velocity), terrain_normal));
+
+		//Collide
+	}
 		//Speed up/slowdown
 
 	//Take off Evaporation

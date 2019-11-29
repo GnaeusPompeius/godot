@@ -12,26 +12,15 @@ struct TerrainCell {
 	float height;
 	Vector3 normal_NW;
 	Vector3 normal_SE;
+	float padding;
 };
 
 struct WaterParticle {
-	Vector2 position; //  [0, terrain_size]
-	Vector2 velocity;
+	Vector3 position; //  [0, terrain_size]
+	Vector3 velocity;
 	float mass;
-	float padding[3];
+	float padding[1];
 };
-
-/*
-	TODO:
-		Update normals
-
-		spill over the edges
-
-		smooth out | steepen slopes
-			It's pooling too much
-		introduce evaporation
-			
-*/
 
 class MapGenerator : public Reference {
 	GDCLASS(MapGenerator, Reference);
