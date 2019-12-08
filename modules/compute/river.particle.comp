@@ -41,8 +41,8 @@ const int terrain_size = 3600;
 //RainDrop controls "resolution" of the watershed. Higher Values == Fatter Rivers
 const float rain_drop = .01;
 //Determines something
-const float ground_friction = .07;
-const float gravity = -.098;
+const float ground_bounce = .85;
+const float gravity = -9.8 / 30;
 const float spawn_height = 5;
 
 //MC controls speed, "viscosity" of flow
@@ -66,6 +66,7 @@ void main() {
 	uint index = gl_LocalInvocationIndex;
 
 	WaterParticle particle = particles_in[index];
+	const TerrainCell ter_cell = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y))];
 	uint rand_x = gl_GlobalInvocationID.x;
 	uint rand_y = gl_GlobalInvocationID.y;
 	
@@ -77,42 +78,55 @@ void main() {
 		particle.position.y = terrain_size * random(vec2(rand_x - delta, rand_y - delta));
 		//Put it above the terrain
 		particle.position.z = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y))].height + spawn_height;
-
 		//Reset velocity
 		particle.velocity = vec3(0);
 	}
 	
-	const TerrainCell ter_cell = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y))];
-
-	
 	//Apply gravity + Move
-		
+	particle.velocity.z += gravity;
+	particle.position += particle.velocity;
 
 
-	//Find terrain normal
+	/*
+	  NW _____ Oppo
+		 |  /|
+		 | / |
+		 |/__|
+	Target	   SE
+	*/
+	//Find terrain normal, height of terrain at particles XY position
 	float normal_x = fract(particle.position.x);
 	float normal_y = fract(particle.position.y);
 	vec3 terrain_normal;
-	if(normal_y > normal_x)
-		terrain_normal = ter_cell.normal_NW;
-	else
-		terrain_normal = ter_cell.normal_SE;
 
-	//Find height of terrain at particles position
-	float terrain_at_position = 0;
-	//terrain_at_position = 	
+	float height_at_position = 0;
+	TerrainCell ter_x;
+	TerrainCell ter_y;
+
+	if(normal_y > normal_x){
+		//Use boolean math if you want to avoid branching.
+		terrain_normal = ter_cell.normal_NW;
+		ter_x = terrain[get_terrain_index(uint(particle.position.x) + 1, uint(particle.position.y)) + 1];	//Oppo
+		ter_y = terrain[get_terrain_index(uint(particle.position.x), uint(particle.position.y)) + 1];		//NW
+	}
+	else{
+		terrain_normal = ter_cell.normal_SE;
+		ter_x = terrain[get_terrain_index(uint(particle.position.x) + 1, uint(particle.position.y))];		//SE
+		ter_y = terrain[get_terrain_index(uint(particle.position.x) + 1, uint(particle.position.y)) + 1];	//Oppo
+	}
+	height_at_position = fract(particle.position.y)*(ter_y.height - ter_cell.height) + fract(particle.position.x)*(ter_x.height - ter_cell.height);
+
 
 
 	//Check for collision
-	if(particle.position.z <= terrain_at_position){
-		
-
-		float angle_of_incidence = acos(dot(normalize(particle.velocity), terrain_normal));
-
+	if(particle.position.z <= height_at_position){		
 		//Collide
+		particle.velocity = ground_bounce * (-2. * dot(particle.velocity, terrain_normal) * terrain_normal + particle.velocity);
+		particle.position.z = ter_cell.height;
 	}
-		//Speed up/slowdown
+
 
 	//Take off Evaporation
+	//Varies with velocity
 
 }

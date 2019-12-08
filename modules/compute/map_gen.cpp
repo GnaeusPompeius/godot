@@ -114,6 +114,7 @@ void MapGenerator::generate_normals() {
 			target.normal_SE = SE_o.cross(SE_t).normalized();
 			
 			//OS::get_singleton()->print("Normal NW:      %f, %f, %f\n", target.normal_NW.x, target.normal_NW.y, target.normal_NW.z);
+			//OS::get_singleton()->print("     Normal SE:      %f, %f, %f\n", target.normal_SE.x, target.normal_SE.y, target.normal_SE.z);
 		
 			set_world_cell(i, j, target);
 		}

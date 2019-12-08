@@ -10,6 +10,8 @@
 
 struct TerrainCell {
 	float height;
+
+	//RainData
 	Vector3 normal_NW;
 	Vector3 normal_SE;
 	float padding;
