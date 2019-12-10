@@ -31,25 +31,48 @@ void MapGenerator::step() {
 
 Ref<Image> MapGenerator::get_image() {
 
-	TerrainCell* out = terrain_shader.open_world_data();
+	//TerrainCell* out = terrain_shader.open_world_data();
+	WaterParticle *p_out = terrain_shader.open_particle_data();
+	OS::get_singleton()->print("%d\n", particle_count);
+
 	StreamPeerBuffer image_data;
-	Ref<Image> image = memnew(Image);
 	image_data.resize(world_size_x * world_size_y * 3 * sizeof(float));
 
 	float value = 0;
+	const float avg_population = float(particle_count) / (world_size_x * world_size_y * 256);
+	WaterParticle particle;
+	TerrainCell ter;
 
-	for (int i = 0; i < data.size(); i++) {
+	image->create(world_size_x, world_size_y, false, Image::FORMAT_RGBF);
+	image->lock();
+	
+	for (int i = 0; i < particle_count; i++) {
 		//Floats normalized to [0, 1]
-		//OS::get_singleton()->print("Normals: %f\n", out[i].height);
 
+		particle = p_out[i];
+		//ter = out[i];
+		//OS::get_singleton()->print("Pos %i:   %i, %i, %f\n", i, int(particle.position.x), int(particle.position.y), particle.position.z);
+		/*
+		Color temp = image->get_pixel(int(particle.position.x), int(particle.position.y));
+		temp.b += 100 * avg_population;
+
+		if (temp.b > 1) {
+			temp.b = 1;
+		}
+		*/
+		image->set_pixel(particle.position.x, particle.position.y, Color(0, 0, 1));
+		//float height = ter.height / 1400.0;
+		//image->set_pixel(i % 3600, i / 3600, Color(height, height, height));
+
+		/*
 		value = out[i].normal_NW.z / 5;
 		image_data.put_float(out[i].normal_NW.x); //R
 		image_data.put_float(out[i].normal_NW.y); //G
 		image_data.put_float(out[i].normal_NW.z); //B
-		//image_data.put_float(1);//A
+		*/
 	}
-	
-	image->create(world_size_x, world_size_y, false, Image::FORMAT_RGBF, image_data.get_data_array());
+
+	image->unlock();
 	terrain_shader.close_data();
 	return image;
 }

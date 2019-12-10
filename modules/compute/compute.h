@@ -60,17 +60,15 @@ public:
 
 	Particle *open_particle_data() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, in_buffer);
-		GLint bufMask = GL_MAP_READ_BIT;
-		Particle *data = (Particle *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_data, bufMask);
-		
+		GLint bufMask = GL_READ_ONLY;
+		Particle *data = (Particle *)glMapBuffer(GL_SHADER_STORAGE_BUFFER, bufMask);
 		return data;	
 	}
 
 	World *open_world_data() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, world_buffer);
-		GLint bufMask = GL_MAP_READ_BIT;
-		World *data = (World *)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, size_world, bufMask);
-
+		GLint bufMask = GL_READ_ONLY;
+		World *data = (World *)glMapBuffer(GL_SHADER_STORAGE_BUFFER, bufMask);
 		return data;
 	}
 

@@ -8,20 +8,31 @@
 #include "scene/resources/texture.h"
 #include "compute.h"
 
-struct TerrainCell {
-	float height;
+/*
+TODO:
+	Better randomization at outlay
+	Rather than bouncing, try sliding
 
+Commit:
+	Padding of buffers diagnosed, fixed.
+	Getting data now uses glMapBuffer.
+
+	Implemented Triple Buffering?
+*/
+
+struct TerrainCell {
 	//RainData
 	Vector3 normal_NW;
-	Vector3 normal_SE;
 	float padding;
+	Vector3 normal_SE;
+	float height;
 };
 
 struct WaterParticle {
 	Vector3 position; //  [0, terrain_size]
 	Vector3 velocity;
 	float mass;
-	float padding[1];
+	float padding;
 };
 
 class MapGenerator : public Reference {
@@ -34,7 +45,9 @@ class MapGenerator : public Reference {
 	PoolVector<WaterParticle> data;
 	PoolVector<TerrainCell> world;
 	Compute<TerrainCell, WaterParticle> terrain_shader;
-	
+
+	Ref<Image> image = memnew(Image);
+
 	void load_data();
 	void generate_normals();
 
