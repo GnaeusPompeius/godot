@@ -128,11 +128,14 @@ void main() {
 	if(particle.position.z <= height_at_position){		
 		//Collide
 		particle.velocity = ground_bounce * (-2. * dot(particle.velocity, terrain_normal) * terrain_normal + particle.velocity);
-		particle.position.z = height_at_position;
-		particle.position += particle.velocity;
+		particle.position.z = ter_cell.height;
 	}
 	
 
+	//Take off Evaporation
+	//Varies with velocity
+
+	//particle.position = vec3(delta);
 
 	particles_out[index] = particle;
 }

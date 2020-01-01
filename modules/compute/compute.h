@@ -15,6 +15,10 @@
 
 /*
 	In the abstract, World are the exogenous variables, Particle the endogenous
+
+	TODO:
+		Write a test for the struct alignment, passing between GPU-CPU.
+
 */
 template <typename World, typename Particle> class Compute {
 	//Workgroup Size

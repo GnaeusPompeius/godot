@@ -14,9 +14,6 @@ TODO:
 	Rather than bouncing, try sliding
 
 Commit:
-	Padding of buffers diagnosed, fixed.
-	Getting data now uses glMapBuffer.
-
 	Implemented Triple Buffering?
 */
 
